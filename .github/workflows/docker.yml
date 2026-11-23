@@ -4,7 +4,7 @@ name: Docker
 
 on:
   push:
-    branches: [main]
+    branches: [master]
     tags: ["v*"]
   pull_request:
   workflow_dispatch:
@@ -28,7 +28,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # latest on main, 1.2.3 and 1.2 for v1.2.3 tags, plus the commit SHA.
+      # latest on master, 1.2.3 and 1.2 for v1.2.3 tags, plus the commit SHA.
       - id: meta
         uses: docker/metadata-action@v6
         with:

@@ -37,7 +37,7 @@ docker run -d -p 3000:3000 --env-file .env spotify-stats
 ```
 
 Prebuilt images (amd64) are published to GitHub Container Registry by
-`.github/workflows/docker.yml`: `latest` from `main`, a version tag for each
+`.github/workflows/docker.yml`: `latest` from `master`, a version tag for each
 `v*` Git tag, and one per commit SHA. To use one instead of building:
 
 ```bash
