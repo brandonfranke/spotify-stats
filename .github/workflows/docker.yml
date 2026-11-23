@@ -1,5 +1,9 @@
-# Builds the Docker image and publishes it to GitHub Container Registry (ghcr.io).
-# Pull requests only build, to check the Dockerfile still works.
+# Builds the Docker image and publishes it to GitHub Container Registry (ghcr.io)
+# and Docker Hub. Pull requests only build, to check the Dockerfile still works.
+#
+# Docker Hub needs, under Settings > Secrets and variables > Actions:
+#   variable DOCKERHUB_USERNAME  your Docker Hub username
+#   secret   DOCKERHUB_TOKEN     a personal access token with read/write/delete scope
 name: Docker
 
 on:
@@ -28,11 +32,19 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - if: github.event_name != 'pull_request'
+        uses: docker/login-action@v4
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
       # latest on master, 1.2.3 and 1.2 for v1.2.3 tags, plus the commit SHA.
       - id: meta
         uses: docker/metadata-action@v6
         with:
-          images: ghcr.io/${{ github.repository }}
+          images: |
+            ghcr.io/${{ github.repository }}
+            docker.io/${{ vars.DOCKERHUB_USERNAME }}/spotify-stats
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=semver,pattern={{version}}
@@ -48,3 +60,13 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      # Copies README.md to the Docker Hub page; relative links such as the screenshot become absolute.
+      - if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        uses: peter-evans/dockerhub-description@v5
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: ${{ vars.DOCKERHUB_USERNAME }}/spotify-stats
+          short-description: Self-hosted listening journal for your Spotify account.
+          enable-url-completion: true
