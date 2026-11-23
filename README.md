@@ -10,6 +10,10 @@ Top tracks and artists, recent plays, your library, playlists, and detailed page
 [![Image](https://img.shields.io/badge/image-ghcr.io%2Fbrandonfranke%2Fspotify--stats-blue?logo=docker&logoColor=white)](https://github.com/brandonfranke/spotify-stats/pkgs/container/spotify-stats)
 ![Platform](https://img.shields.io/badge/platform-linux%2Famd64-lightgrey)
 
+<br>
+
+<img src="docs/screenshot.png" alt="The Overview page: top tracks and top artists for the last six months" width="900">
+
 </div>
 
 ---
