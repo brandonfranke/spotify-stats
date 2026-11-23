@@ -38,11 +38,13 @@ function Search() {
   }, [draft, q, navigate]);
 
   const query = q.trim();
-  const results = useQuery({
-    ...orpc.spotify.search.queryOptions({ input: { query, page } }),
-    enabled: query.length > 0,
-    placeholderData: keepPreviousData,
-  });
+  const results = useQuery(
+    orpc.spotify.search.queryOptions({
+      input: { query, page },
+      enabled: query.length > 0,
+      placeholderData: keepPreviousData,
+    }),
+  );
 
   return (
     <>

@@ -2,9 +2,7 @@ import { ORPCError, os } from "@orpc/server";
 
 import type { Context } from "./context";
 
-export const o = os.$context<Context>();
-
-export const publicProcedure = o;
+export const publicProcedure = os.$context<Context>();
 
 /**
  * Requires a valid Spotify-backed session. Applies to every caller, including

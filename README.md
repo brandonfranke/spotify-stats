@@ -56,7 +56,7 @@ The container uses **your own** Spotify app, so it doesn't depend on anyone else
    http://127.0.0.1:3000/auth/callback
    ```
 
-4. Copy the app's **Client ID**. No client secret is needed.
+4. Copy the app's **Client ID** and **Client secret**.
 
 > [!IMPORTANT]
 > Spotify only accepts HTTPS redirect URIs, except loopback addresses like `http://127.0.0.1`. **`localhost` is not accepted**, so open the app at `http://127.0.0.1:3000`, not `http://localhost:3000`.
@@ -70,9 +70,10 @@ The container uses **your own** Spotify app, so it doesn't depend on anyone else
 docker run -d \
   --name spotify-stats \
   --restart unless-stopped \
-  -p 3000:3000 \
+  -p 127.0.0.1:3000:3000 \
   -e APP_URL=http://127.0.0.1:3000 \
   -e SPOTIFY_CLIENT_ID=your-client-id \
+  -e SPOTIFY_CLIENT_SECRET=your-client-secret \
   ghcr.io/brandonfranke/spotify-stats:latest
 ```
 
@@ -87,10 +88,11 @@ services:
     container_name: spotify-stats
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     environment:
       APP_URL: http://127.0.0.1:3000
       SPOTIFY_CLIENT_ID: your-client-id
+      SPOTIFY_CLIENT_SECRET: your-client-secret
       # SOUND_LOOKUPS: "false"   # only contact Spotify (see Configuration)
 ```
 
@@ -105,6 +107,7 @@ To keep settings out of `compose.yaml`, put them in a `.env` file next to it:
 ```dotenv
 APP_URL=http://127.0.0.1:3000
 SPOTIFY_CLIENT_ID=your-client-id
+SPOTIFY_CLIENT_SECRET=your-client-secret
 SOUND_LOOKUPS=true
 ```
 
@@ -116,7 +119,7 @@ services:
     image: ghcr.io/brandonfranke/spotify-stats:latest
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     env_file: .env
 ```
 
@@ -130,12 +133,11 @@ All configuration is done with environment variables. They are checked when the 
 | --- | :---: | --- | --- |
 | `APP_URL` | ✅ | — | The URL you open the app at, with no trailing slash. Your Spotify app's redirect URI must be exactly `APP_URL/auth/callback`. |
 | `SPOTIFY_CLIENT_ID` | ✅ | — | Client ID of your Spotify app. |
+| `SPOTIFY_CLIENT_SECRET` | ✅ | — | Client secret of your Spotify app. It is only used on the server. |
 | `SOUND_LOOKUPS` | | `true` | Look up tempo, key and audio traits for track pages from ReccoBeats and Deezer. Set to `false` so the server only contacts Spotify. |
-| `PORT` | | `3000` | Port the server listens on inside the container. |
-| `HOST` | | `0.0.0.0` | Address the server listens on inside the container. |
 
 > [!TIP]
-> To use another port, change only the host side of the mapping and `APP_URL`, for example `-p 8080:3000` with `APP_URL=http://127.0.0.1:8080`. Register the new redirect URI in your Spotify app too.
+> To use another port, change only the host side of the mapping and `APP_URL`, for example `-p 127.0.0.1:8080:3000` with `APP_URL=http://127.0.0.1:8080`. Register the new redirect URI in your Spotify app too.
 
 ### Container details
 
@@ -178,6 +180,7 @@ services:
     environment:
       APP_URL: https://music.example.com
       SPOTIFY_CLIENT_ID: your-client-id
+      SPOTIFY_CLIENT_SECRET: your-client-secret
 
   caddy:
     image: caddy:2
@@ -230,7 +233,7 @@ Set `SOUND_LOOKUPS=false` to turn this off. The server then contacts only Spotif
 
 - **No data is stored on the server.** Pages are fetched live from Spotify, and there is no database or listening history.
 - **One cookie per browser.** After sign-in, the Spotify token and basic profile are kept in a single HttpOnly cookie for 30 days. Tokens are refreshed on the server shortly before they expire.
-- **No client secret.** Sign-in uses Spotify's [PKCE flow](https://developer.spotify.com/documentation/web-api/tutorials/code-pkce-flow) through the official [`@spotify/web-api-ts-sdk`](https://github.com/spotify/spotify-web-api-ts-sdk).
+- **Standard Spotify sign-in.** The server uses Spotify's [authorization code flow](https://developer.spotify.com/documentation/web-api/tutorials/code-flow). The client secret stays on the server, and the tokens are kept in an HttpOnly cookie that page scripts can't read.
 - **Read-only access to your library.** The app asks only for read scopes, plus playback control for the Now Playing page. It never changes your library or playlists.
 - **Every private page and API call is checked** on the server. State-changing requests must come from the app's own origin.
 - **Signing out** deletes the cookie. To remove the app's access completely, go to [spotify.com/account/apps](https://www.spotify.com/account/apps/).
@@ -240,7 +243,6 @@ Set `SOUND_LOOKUPS=false` to turn this off. The server then contacts only Spotif
 | Problem | Fix |
 | --- | --- |
 | Spotify shows *INVALID_CLIENT: Invalid redirect URI* | The redirect URI in your Spotify app must be exactly `APP_URL/auth/callback`, including scheme and host. |
-| Sign-in fails the first time, then works | You opened the app at an address other than `APP_URL` (for example `localhost` instead of `127.0.0.1`). Use the `APP_URL` address. |
 | *This account isn't allowed to use this app yet* | Add the Spotify account under **User Management** in the Spotify Developer Dashboard. |
 | The container exits immediately | Check `docker logs spotify-stats`. A required variable is missing or invalid. |
 | Track pages show no tempo or key | ReccoBeats and Deezer have no data for that track, or `SOUND_LOOKUPS` is `false`. |
@@ -250,7 +252,7 @@ Set `SOUND_LOOKUPS=false` to turn this off. The server then contacts only Spotif
 ```bash
 git clone https://github.com/brandonfranke/spotify-stats.git
 cd spotify-stats
-cp .env.example .env    # then set SPOTIFY_CLIENT_ID
+cp .env.example .env    # then set SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET
 docker compose up -d --build
 ```
 
@@ -258,7 +260,7 @@ The repository's `compose.yaml` builds the image locally and reads `.env`. To bu
 
 ```bash
 docker build -t spotify-stats .
-docker run -d -p 3000:3000 --env-file .env spotify-stats
+docker run -d -p 127.0.0.1:3000:3000 --env-file .env spotify-stats
 ```
 
 ### Development
@@ -267,7 +269,7 @@ The app is a [Bun](https://bun.sh/) monorepo built with TanStack Start, oRPC and
 
 ```bash
 bun install
-# Create apps/web/.env with SPOTIFY_CLIENT_ID and
+# Create apps/web/.env with SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET and
 # register http://127.0.0.1:3001/auth/callback in your Spotify app.
 bun run dev    # http://127.0.0.1:3001
 ```

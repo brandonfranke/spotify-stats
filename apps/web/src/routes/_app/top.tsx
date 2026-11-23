@@ -24,9 +24,9 @@ export const Route = createFileRoute("/_app/top")({
 function Top() {
   const { type, range, page } = Route.useSearch();
   const navigate = Route.useNavigate();
-  const input = { input: { timeRange: range, page } };
-  const tracks = useQuery({ ...orpc.spotify.top.tracks.queryOptions(input), enabled: type === "tracks" });
-  const artists = useQuery({ ...orpc.spotify.top.artists.queryOptions(input), enabled: type === "artists" });
+  const input = { timeRange: range, page };
+  const tracks = useQuery(orpc.spotify.top.tracks.queryOptions({ input, enabled: type === "tracks" }));
+  const artists = useQuery(orpc.spotify.top.artists.queryOptions({ input, enabled: type === "artists" }));
   const start = (page - 1) * PAGE_SIZE + 1;
 
   return (

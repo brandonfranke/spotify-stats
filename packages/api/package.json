@@ -10,10 +10,7 @@
     "check-types": "tsc -b"
   },
   "dependencies": {
-    "@orpc/client": "catalog:",
-    "@orpc/openapi": "catalog:",
     "@orpc/server": "catalog:",
-    "@orpc/zod": "catalog:",
     "@spotify/web-api-ts-sdk": "1.2.0",
     "zod": "catalog:"
   },
