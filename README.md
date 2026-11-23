@@ -8,6 +8,7 @@ Top tracks and artists, recent plays, your library, playlists, and detailed page
 
 [![Docker](https://github.com/brandonfranke/spotify-stats/actions/workflows/docker.yml/badge.svg)](https://github.com/brandonfranke/spotify-stats/actions/workflows/docker.yml)
 [![Image](https://img.shields.io/badge/image-ghcr.io%2Fbrandonfranke%2Fspotify--stats-blue?logo=docker&logoColor=white)](https://github.com/brandonfranke/spotify-stats/pkgs/container/spotify-stats)
+[![Docker Hub](https://img.shields.io/docker/pulls/brandonfranke/spotify-stats?logo=docker&logoColor=white&label=docker%20hub)](https://hub.docker.com/r/brandonfranke/spotify-stats)
 ![Platform](https://img.shields.io/badge/platform-linux%2Famd64-lightgrey)
 
 ![The Overview page: top tracks and top artists for the last six months](docs/screenshot.png)
@@ -148,7 +149,14 @@ All configuration is done with environment variables. They are checked when the 
 
 ## Image tags
 
-Images are published to the GitHub Container Registry.
+Images are published with the same tags to two registries; use whichever you prefer:
+
+| Registry | Image |
+| --- | --- |
+| GitHub Container Registry | `ghcr.io/brandonfranke/spotify-stats` |
+| Docker Hub | `brandonfranke/spotify-stats` |
+
+The examples in this README use GitHub's registry.
 
 | Tag | Description |
 | --- | --- |
