@@ -38,7 +38,7 @@ function Player() {
                   {item?.name ?? `Playing ${humanize(data.currently_playing_type)}`}
                 </h2>
                 {item && "artists" in item && <ArtistLinks artists={item.artists} className="text-lg" />}
-                {item && data.progress_ms !== null && (
+                {item && item.duration_ms > 0 && data.progress_ms !== null && (
                   <div className="flex max-w-md flex-col gap-1">
                     <div
                       role="progressbar"

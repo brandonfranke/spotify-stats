@@ -1,11 +1,14 @@
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
+import { createServerFn } from "@tanstack/react-start";
 import { ArrowRightIcon } from "lucide-react";
-import { useEffect } from "react";
 import { z } from "zod";
 
 import { SpotifyAttribution } from "@/components/app-shell";
 import { SpotifyIcon } from "@/components/music";
-import { getLoginConfig, login } from "@/lib/login";
+import { config } from "@/server/spotify-auth";
+
+// Start on APP_URL's origin: the state cookie must be readable when Spotify returns there.
+const getLoginUrl = createServerFn().handler(() => `${config().appUrl}/auth/login`);
 
 const loginErrors: Record<string, string> = {
   denied: "Spotify access was not granted, so nothing was connected.",
@@ -24,7 +27,7 @@ export const Route = createFileRoute("/")({
     );
     if (session && !search.error) throw redirect({ to: "/overview" });
   },
-  loader: () => getLoginConfig(),
+  loader: () => getLoginUrl(),
   component: Landing,
 });
 
@@ -36,18 +39,8 @@ const promises = [
 
 function Landing() {
   const { error } = Route.useSearch();
-  const config = Route.useLoaderData();
+  const loginUrl = Route.useLoaderData();
   const message = error ? (loginErrors[error] ?? "Sign-in failed. Please try again.") : null;
-
-  // Sign-in must start on APP_URL's origin: the SDK keeps its PKCE verifier in that
-  // origin's localStorage, and Spotify returns to APP_URL. Opening e.g. localhost
-  // instead of 127.0.0.1 would otherwise fail the first sign-in.
-  useEffect(() => {
-    const canonical = new URL(config.redirectUri).origin;
-    if (window.location.origin !== canonical) {
-      window.location.replace(canonical + window.location.pathname + window.location.search);
-    }
-  }, [config.redirectUri]);
 
   return (
     <div className="paper flex min-h-svh flex-col">
@@ -69,15 +62,14 @@ function Landing() {
           )}
 
           <div className="flex flex-wrap items-center gap-4">
-            <button
-              type="button"
-              onClick={() => void login(config)}
+            <a
+              href={loginUrl}
               className="group inline-flex min-h-12 cursor-pointer items-center gap-3 bg-primary px-6 text-base font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
             >
               <SpotifyIcon className="size-5 rounded-full bg-black" />
               Continue with Spotify
               <ArrowRightIcon className="size-4 transition-transform group-hover:translate-x-1" aria-hidden="true" />
-            </button>
+            </a>
             <Link to="/privacy" className="text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground">
               What this app can see
             </Link>

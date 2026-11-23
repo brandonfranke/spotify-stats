@@ -21,5 +21,3 @@ export async function createContext({ req }: { req: Request }): Promise<ApiConte
     features: { sound: ENV.SOUND_LOOKUPS !== false },
   };
 }
-
-export type Context = Awaited<ReturnType<typeof createContext>>;

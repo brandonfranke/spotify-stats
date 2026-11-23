@@ -25,10 +25,13 @@ export function createQueryClient() {
   return new QueryClient({
     queryCache: new QueryCache({
       onError: (error) => {
-        // Sessions can end mid-visit (expiry, disconnect elsewhere). Send the
-        // browser back to sign-in; other errors are shown per section.
+        // Sessions can end mid-visit (expiry, access revoked in Spotify). Clear the
+        // cookie, which may still look valid, and send the browser back to sign-in;
+        // other errors are shown per section.
         if (typeof window !== "undefined" && getErrorStatus(error) === 401) {
-          window.location.assign("/");
+          void fetch("/auth/logout", { method: "POST", redirect: "manual" }).finally(() =>
+            window.location.assign("/"),
+          );
         }
       },
     }),

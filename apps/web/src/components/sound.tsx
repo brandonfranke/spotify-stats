@@ -2,7 +2,7 @@ import type { Sound } from "@spotify-stats/api/sound";
 import { TRAITS } from "@spotify-stats/api/sound";
 import { useQuery } from "@tanstack/react-query";
 
-import { EmptyNote, ErrorNotice, RowsSkeleton, Section } from "@/components/editorial";
+import { EmptyNote, QueryView, RowsSkeleton, Section } from "@/components/editorial";
 import { formatKey } from "@/lib/format";
 import { orpc } from "@/utils/orpc";
 
@@ -22,13 +22,9 @@ export function SoundSection({ id, isrc }: { id: string; isrc?: string }) {
 
   return (
     <Section number="03" title="Sound">
-      {sound.isPending ? (
-        <RowsSkeleton rows={3} />
-      ) : sound.isError ? (
-        <ErrorNotice error={sound.error} onRetry={() => sound.refetch()} />
-      ) : (
-        <SoundReadout sound={sound.data} />
-      )}
+      <QueryView query={sound} loading={<RowsSkeleton rows={3} />}>
+        {(data) => <SoundReadout sound={data} />}
+      </QueryView>
     </Section>
   );
 }

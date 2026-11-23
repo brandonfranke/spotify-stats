@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Rendered, renderWithRouter } from "@/test/render";
-import { orpc } from "@/utils/orpc";
+import { createQueryClient, orpc } from "@/utils/orpc";
 
 import { ErrorNotice, QueryView } from "./editorial";
 import { MusicList, TrackArtwork, TrackRow } from "./music";
@@ -177,6 +177,19 @@ describe("QueryView", () => {
     render(<QueryView query={{ ...base, error: new Error("boom"), refetch }}>{() => "content"}</QueryView>);
     await userEvent.click(screen.getByRole("button", { name: "Try again" }));
     expect(refetch).toHaveBeenCalled();
+  });
+});
+
+describe("createQueryClient", () => {
+  it("clears a session Spotify rejected, so sign-in doesn't bounce back to the app", async () => {
+    const fetch = vi.fn(async (_url: string, _init?: RequestInit) => new Response(null, { status: 303 }));
+    vi.stubGlobal("fetch", fetch);
+    const queryClient = createQueryClient();
+    await queryClient
+      .fetchQuery({ queryKey: ["profile"], queryFn: () => Promise.reject(new ORPCError("UNAUTHORIZED")) })
+      .catch(() => {});
+    expect(fetch).toHaveBeenCalledWith("/auth/logout", expect.objectContaining({ method: "POST" }));
+    vi.unstubAllGlobals();
   });
 });
 

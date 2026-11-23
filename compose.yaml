@@ -4,11 +4,14 @@ services:
     image: spotify-stats
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      # Loopback only: without HTTPS the session cookie must not leave this machine.
+      # Put an HTTPS reverse proxy in front to serve other devices.
+      - "127.0.0.1:3000:3000"
     environment:
       # Public URL of this installation. Register APP_URL/auth/callback as the
       # redirect URI in your Spotify app. Must be HTTPS unless it is http://127.0.0.1.
       APP_URL: ${APP_URL:-http://127.0.0.1:3000}
       SPOTIFY_CLIENT_ID: ${SPOTIFY_CLIENT_ID:?set SPOTIFY_CLIENT_ID}
+      SPOTIFY_CLIENT_SECRET: ${SPOTIFY_CLIENT_SECRET:?set SPOTIFY_CLIENT_SECRET}
       # Set to false to stop track pages from contacting ReccoBeats/Deezer for tempo and key.
       SOUND_LOOKUPS: ${SOUND_LOOKUPS:-true}

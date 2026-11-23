@@ -4,7 +4,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { LogoutButton } from "@/components/app-shell";
 import { Facts, PageHeader, QueryView, Section } from "@/components/editorial";
 import { Artwork, SpotifyLink } from "@/components/music";
-import { SCOPES } from "@/lib/login";
+import { SCOPES } from "@/lib/scopes";
 import { orpc } from "@/utils/orpc";
 
 export const Route = createFileRoute("/_app/account")({

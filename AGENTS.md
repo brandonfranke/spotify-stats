@@ -35,7 +35,7 @@ changes, and reuse the root workspace catalog for shared dependencies.
 | Web app | React, TanStack Start and Router, Vite, Nitro's Node server preset |
 | Data fetching | TanStack Query, oRPC, `@orpc/tanstack-query` |
 | API | oRPC procedures, Zod input validation, official `@spotify/web-api-ts-sdk` |
-| UI | Tailwind CSS v4, shared shadcn/ui components built on Base UI, Lucide icons, Sonner toasts, next-themes |
+| UI | Tailwind CSS v4, shared shadcn/ui components built on Base UI, Lucide icons, Sonner toasts |
 | Environment | Varlock schema validation and generated TypeScript environment types |
 | Tests | Vitest, React Testing Library, user-event, jsdom for component tests |
 | Deployment | Docker/Compose; Bun builds the app and Node runs the production output |
