@@ -61,7 +61,7 @@ function Total({ total, noun }: { total: number; noun: string }) {
 function SavedTracks({ page }: { page: number }) {
   const query = useQuery(orpc.spotify.library.tracks.queryOptions({ input: { page } }));
   return (
-    <QueryView query={query} isEmpty={(d) => d.items.length === 0} empty="You haven't saved any tracks.">
+    <QueryView query={query} page={page} isEmpty={(d) => d.items.length === 0} empty="You haven't saved any tracks.">
       {(data) => (
         <div className="flex flex-col gap-4">
           <Total total={data.total} noun="saved track" />
@@ -84,7 +84,7 @@ function SavedTracks({ page }: { page: number }) {
 function SavedAlbums({ page }: { page: number }) {
   const query = useQuery(orpc.spotify.library.albums.queryOptions({ input: { page } }));
   return (
-    <QueryView query={query} isEmpty={(d) => d.items.length === 0} empty="You haven't saved any albums.">
+    <QueryView query={query} page={page} isEmpty={(d) => d.items.length === 0} empty="You haven't saved any albums.">
       {(data) => (
         <div className="flex flex-col gap-6">
           <Total total={data.total} noun="saved album" />
@@ -107,7 +107,7 @@ function SavedAlbums({ page }: { page: number }) {
 function Playlists({ page }: { page: number }) {
   const query = useQuery(orpc.spotify.library.playlists.queryOptions({ input: { page } }));
   return (
-    <QueryView query={query} isEmpty={(d) => d.items.length === 0} empty="You don't have any playlists.">
+    <QueryView query={query} page={page} isEmpty={(d) => d.items.length === 0} empty="You don't have any playlists.">
       {(data) => (
         <div className="flex flex-col gap-4">
           <Total total={data.total} noun="playlist" />

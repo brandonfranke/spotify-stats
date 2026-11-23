@@ -3,7 +3,7 @@
  *
  * The browser runs `SpotifyApi.performUserAuthorization` (see lib/login.ts), then
  * posts the token here. The token and basic profile live in one HttpOnly cookie;
- * nothing is stored on the server. The SDK refreshes expired tokens itself.
+ * nothing is stored on the server. getSession() refreshes tokens shortly before they expire.
  */
 import { ORPCError } from "@orpc/server";
 import type { AccessToken } from "@spotify/web-api-ts-sdk";
@@ -49,7 +49,7 @@ function writeSession({ user, token }: Session) {
 }
 
 /** Only accept auth requests made by this app's own pages. */
-function isSameOrigin(request: Request) {
+export function isSameOrigin(request: Request) {
   return request.headers.get("origin") === new URL(config().appUrl).origin;
 }
 
@@ -79,23 +79,69 @@ export function handleLogout(request: Request) {
   return new Response(null, { status: 303, headers: { Location: "/" } });
 }
 
-/** The signed-in user and their Spotify client, or null when signed out. */
+/** Refresh tokens this many ms before expiry, so a token stays valid for the whole request. */
+const REFRESH_MARGIN = 60_000;
+/** Overlapping requests still carrying the old cookie reuse a finished refresh for this long. */
+const REFRESH_REUSE = 30_000;
+
+class SessionRejected extends Error {}
+
+const refreshes = new Map<string, Promise<AccessToken>>();
+
+/** One refresh per refresh token, shared by concurrent requests (Spotify may rotate it). */
+function refreshToken(refresh: string) {
+  let pending = refreshes.get(refresh);
+  if (!pending) {
+    pending = requestRefresh(refresh);
+    refreshes.set(refresh, pending);
+    pending.then(
+      () => setTimeout(() => refreshes.delete(refresh), REFRESH_REUSE),
+      () => refreshes.delete(refresh),
+    );
+  }
+  return pending;
+}
+
+async function requestRefresh(refresh: string): Promise<AccessToken> {
+  const response = await fetch("https://accounts.spotify.com/api/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ grant_type: "refresh_token", refresh_token: refresh, client_id: config().clientId }),
+    signal: AbortSignal.timeout(10_000),
+  });
+  // 400 is invalid_grant: the refresh token was revoked or already rotated away.
+  if (response.status === 400) throw new SessionRejected();
+  if (!response.ok) throw new Error(`Token refresh failed (${response.status})`);
+  const token = (await response.json()) as AccessToken;
+  return {
+    ...token,
+    // Spotify may omit refresh_token on refresh, meaning "keep using the old one".
+    refresh_token: token.refresh_token || refresh,
+    expires: Date.now() + token.expires_in * 1000,
+  };
+}
+
+/**
+ * The signed-in user and an SDK bound to a token that is valid for at least a
+ * minute, or null when signed out. Throws a retryable error if Spotify can't
+ * be reached to refresh, so a hiccup doesn't look like a sign-out.
+ */
 export async function getSession() {
   const session = readSession();
-  if (!session) return null;
-  const spotify = createSpotifyApi(config().clientId, session.token);
-  try {
-    // Refreshes an expired token; keep the new one for the next request.
-    const { accessToken } = await spotify.authenticate();
-    if (accessToken !== session.token) {
-      // Spotify may omit refresh_token on refresh, meaning "keep using the old one".
-      const refresh_token = accessToken.refresh_token || session.token.refresh_token;
-      writeSession({ ...session, token: { ...accessToken, refresh_token } });
+  if (!session?.token?.access_token) return null;
+  let { token } = session;
+  if (!token.expires || token.expires - REFRESH_MARGIN < Date.now()) {
+    try {
+      token = await refreshToken(token.refresh_token);
+    } catch (error) {
+      if (error instanceof SessionRejected) {
+        deleteCookie(SESSION_COOKIE, { path: "/" });
+        return null;
+      }
+      console.error("Spotify token refresh failed:", error instanceof Error ? error.message : error);
+      throw new ORPCError("SERVICE_UNAVAILABLE", { message: "Couldn't reach Spotify to renew your session." });
     }
-  } catch (error) {
-    // Only a rejected refresh token signs the user out; network or rate-limit errors keep the cookie.
-    if (String(error).includes("invalid_grant")) deleteCookie(SESSION_COOKIE, { path: "/" });
-    return null;
+    writeSession({ ...session, token });
   }
-  return { user: session.user, spotify };
+  return { user: session.user, spotify: createSpotifyApi(config().clientId, token) };
 }

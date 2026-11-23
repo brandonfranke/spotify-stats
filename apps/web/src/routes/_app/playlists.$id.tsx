@@ -50,7 +50,7 @@ function PlaylistDetail() {
         {restricted ? (
           <Restricted />
         ) : (
-          <QueryView query={items} isEmpty={(d) => d.items.length === 0} empty="This playlist is empty.">
+          <QueryView query={items} page={page} isEmpty={(d) => d.items.length === 0} empty="This playlist is empty.">
             {(data) => (
                 <div className="flex flex-col gap-6">
                   <MusicList start={(page - 1) * 20 + 1}>

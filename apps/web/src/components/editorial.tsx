@@ -150,19 +150,34 @@ export function QueryView<T>({
   isEmpty,
   empty,
   loading,
+  page,
   children,
 }: {
   query: QueryLike<T>;
   isEmpty?: (data: T) => boolean;
   empty?: ReactNode;
   loading?: ReactNode;
+  /** For paginated lists: an empty page past the first isn't an empty collection. */
+  page?: number;
   children: (data: T) => ReactNode;
 }) {
   if (query.isPending) return <>{loading ?? <RowsSkeleton />}</>;
   if (query.error || query.data === undefined) {
     return <ErrorNotice error={query.error} onRetry={() => query.refetch()} />;
   }
-  if (isEmpty?.(query.data)) return <EmptyNote>{empty ?? "Nothing here yet."}</EmptyNote>;
+  if (isEmpty?.(query.data)) {
+    if (page && page > 1) {
+      return (
+        <EmptyNote>
+          Nothing on page {page}.{" "}
+          <Link to="." search={(prev: Record<string, unknown>) => ({ ...prev, page: 1 })} className="text-foreground underline underline-offset-4">
+            Back to page 1
+          </Link>
+        </EmptyNote>
+      );
+    }
+    return <EmptyNote>{empty ?? "Nothing here yet."}</EmptyNote>;
+  }
   return <>{children(query.data)}</>;
 }
 

@@ -1,13 +1,12 @@
 import type { SimplifiedArtist } from "@spotify/web-api-ts-sdk";
-import { Alert, AlertDescription, AlertTitle } from "@spotify-stats/ui/components/alert";
 import { Badge } from "@spotify-stats/ui/components/badge";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { InfoIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { Facts, QueryView, RowsSkeleton, Section } from "@/components/editorial";
-import { Artwork, ArtistLinks, SpotifyLink } from "@/components/music";
+import { TrackArtwork, ArtistLinks, SpotifyLink } from "@/components/music";
+import { SoundSection } from "@/components/sound";
 import { formatDuration, formatReleaseDate, humanize } from "@/lib/format";
 import { orpc } from "@/utils/orpc";
 
@@ -19,13 +18,15 @@ export const Route = createFileRoute("/_app/tracks/$id")({
 function TrackDetail() {
   const { id } = Route.useParams();
   const track = useQuery(orpc.spotify.track.queryOptions({ input: { id } }));
+  const features = useQuery(orpc.features.queryOptions({ staleTime: Infinity }));
 
   return (
     <QueryView query={track} loading={<RowsSkeleton rows={4} />}>
       {(data) => (
         <>
           <header className="rise-in grid gap-8 border-b border-border pb-10 md:grid-cols-[auto_1fr] md:items-end">
-            <Artwork
+            <TrackArtwork
+              track={data}
               images={data.album.images}
               alt={`Cover of ${data.album.name}`}
               size={280}
@@ -69,16 +70,7 @@ function TrackDetail() {
 
             <div className="flex flex-col gap-12">
               <ArtistGenres artists={data.artists} />
-              <Section number="03" title="Tempo, key & time signature">
-                <Alert>
-                  <InfoIcon aria-hidden="true" />
-                  <AlertTitle>Not available from Spotify</AlertTitle>
-                  <AlertDescription>
-                    Spotify stopped offering audio features (BPM, key, time signature, energy) and audio
-                    analysis to new apps in November 2024, so this app can't show them.
-                  </AlertDescription>
-                </Alert>
-              </Section>
+              {features.data?.sound && <SoundSection id={data.id} isrc={data.external_ids?.isrc} />}
             </div>
           </div>
         </>

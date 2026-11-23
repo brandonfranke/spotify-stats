@@ -8,12 +8,16 @@ import type {
   SimplifiedTrack,
   Track,
 } from "@spotify/web-api-ts-sdk";
+import { Button } from "@spotify-stats/ui/components/button";
 import { cn } from "@spotify-stats/ui/lib/utils";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { Disc3Icon, ExternalLinkIcon, Mic2Icon, MusicIcon } from "lucide-react";
-import type { ReactNode } from "react";
+import { Disc3Icon, ExternalLinkIcon, Loader2Icon, Mic2Icon, MusicIcon, PlayIcon } from "lucide-react";
+import type { ComponentProps, ReactNode } from "react";
+import { toast } from "sonner";
 
 import { formatDuration, formatReleaseDate, humanize, pickImage } from "@/lib/format";
+import { getErrorStatus, orpc } from "@/utils/orpc";
 
 /** Official Spotify icon, used unmodified for attribution and "Open Spotify" links. */
 export function SpotifyIcon({ className }: { className?: string }) {
@@ -58,7 +62,7 @@ export function SpotifyLink({
 const placeholderIcons = { album: Disc3Icon, artist: Mic2Icon, track: MusicIcon };
 
 /**
- * Cover art shown intact: never cropped, overlaid, filtered or animated.
+ * Cover art shown intact: never cropped, filtered or animated.
  * Space is reserved up front so loading never shifts layout.
  */
 export function Artwork({
@@ -100,6 +104,58 @@ export function Artwork({
       style={{ width: size, height: size }}
       className={cn("shrink-0 bg-muted object-contain", radius, className)}
     />
+  );
+}
+
+const playbackErrors: Partial<Record<number, string>> = {
+  401: "Sign in with Spotify again to control playback.",
+  403: "Playback needs Spotify Premium and permission to control an active device.",
+  404: "Open Spotify on a device, then try playing this song again.",
+  429: "Spotify is rate limiting requests. Wait a moment, then try again.",
+};
+
+export function TrackArtwork({
+  track,
+  ...props
+}: ComponentProps<typeof Artwork> & {
+  track: Pick<Track, "id" | "name"> & { is_local?: boolean };
+}) {
+  const queryClient = useQueryClient();
+  const play = useMutation(orpc.spotify.player.play.mutationOptions({
+    onSuccess: () => {
+      // Spotify's playback state takes a moment to reflect a command.
+      setTimeout(() => void queryClient.invalidateQueries({ queryKey: orpc.spotify.player.key() }), 500);
+    },
+    onError: (error) => {
+      const status = getErrorStatus(error);
+      const message = status === null ? undefined : playbackErrors[status];
+      toast.error(message ?? "Spotify couldn't play this song right now. Try again.");
+    },
+  }));
+
+  if (!track.id || track.is_local) return <Artwork {...props} />;
+
+  return (
+    <div className="group/artwork relative w-fit shrink-0 max-w-full">
+      <Artwork {...props} />
+      <Button
+        type="button"
+        size="icon"
+        aria-label={`Play ${track.name}`}
+        aria-busy={play.isPending}
+        disabled={play.isPending}
+        onClick={() => play.mutate({ trackId: track.id })}
+        className={cn(
+          "absolute inset-0 m-auto size-11 rounded-full shadow-lg transition-opacity motion-reduce:transition-none",
+          "opacity-0 group-hover/artwork:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100",
+          play.isPending && "opacity-100",
+        )}
+      >
+        {play.isPending
+          ? <Loader2Icon className="size-5 animate-spin motion-reduce:animate-none" aria-hidden="true" />
+          : <PlayIcon className="size-5 fill-current" aria-hidden="true" />}
+      </Button>
+    </div>
   );
 }
 
@@ -174,7 +230,11 @@ export function TrackRow({
   return (
     <li className="group flex min-h-16 items-center gap-3 py-2 sm:gap-4">
       <Rank value={rank} />
-      <Artwork images={album?.images ?? ("images" in track ? track.images : null)} alt="" size={48} kind="track" />
+      {isEpisode ? (
+        <Artwork images={track.images} alt="" size={48} kind="track" />
+      ) : (
+        <TrackArtwork track={track} images={album?.images} alt="" size={48} kind="track" />
+      )}
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           {track.explicit && <ExplicitMark />}

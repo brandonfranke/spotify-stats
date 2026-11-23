@@ -17,6 +17,10 @@ const sections: [string, string][] = [
     "Only your sign-in session: an HttpOnly cookie in your browser that holds your Spotify access tokens and basic profile. The server doesn't keep a database, files, or a listening history. Pages fetch fresh data from Spotify and keep it in memory briefly to avoid duplicate requests.",
   ],
   [
+    "Other services",
+    "When you open a track, the server looks up its tempo, key and similar audio traits on ReccoBeats and, if needed, Deezer. Only the track's Spotify ID and ISRC code are sent, never your account details. Whoever runs this installation can turn these lookups off.",
+  ],
+  [
     "How long it lasts",
     "The session cookie expires after 30 days, or when you sign out.",
   ],

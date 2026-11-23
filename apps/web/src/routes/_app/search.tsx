@@ -88,7 +88,7 @@ function Search() {
       {query.length === 0 ? (
         <EmptyNote>Type something to search Spotify.</EmptyNote>
       ) : (
-        <QueryView query={results} isEmpty={(d) => d[`${type}s`].items.length === 0} empty={`No results for “${query}”.`}>
+        <QueryView query={results} page={page} isEmpty={(d) => d[`${type}s`].items.length === 0} empty={`No results for “${query}”.`}>
           {(data) => {
             const start = (page - 1) * 10 + 1;
             return (

@@ -62,3 +62,13 @@ export function plural(value: number, noun: string) {
 export function humanize(value: string) {
   return value.charAt(0).toUpperCase() + value.slice(1).replace(/_/g, " ");
 }
+
+
+const PITCHES = ["C", "C♯", "D", "E♭", "E", "F", "F♯", "G", "A♭", "A", "B♭", "B"];
+
+/** Pitch class (0–11) and mode (1 major, 0 minor) as e.g. "C♯ major". */
+export function formatKey(key: number | null | undefined, mode: number | null | undefined) {
+  const pitch = key == null ? undefined : PITCHES[key];
+  if (!pitch) return null;
+  return mode === 1 ? `${pitch} major` : mode === 0 ? `${pitch} minor` : pitch;
+}

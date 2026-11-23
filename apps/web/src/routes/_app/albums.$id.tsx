@@ -47,7 +47,7 @@ function AlbumDetail() {
       </QueryView>
 
       <Section number="01" title="Tracklist">
-        <QueryView query={tracks} isEmpty={(d) => d.items.length === 0} empty="Spotify didn't return any tracks.">
+        <QueryView query={tracks} page={page} isEmpty={(d) => d.items.length === 0} empty="Spotify didn't return any tracks.">
           {(data) => (
             <div className="flex flex-col gap-6">
               <MusicList>

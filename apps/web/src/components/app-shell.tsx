@@ -1,4 +1,5 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@spotify-stats/ui/components/avatar";
+import { Toaster } from "@spotify-stats/ui/components/sonner";
 import {
   Sidebar,
   SidebarContent,
@@ -125,6 +126,7 @@ export function AppShell({ user, children }: { user: ShellUser; children: ReactN
         </main>
         <SpotifyAttribution />
       </SidebarInset>
+      <Toaster theme="dark" closeButton />
     </SidebarProvider>
   );
 }

@@ -53,7 +53,7 @@ function Top() {
       </div>
 
       {type === "tracks" ? (
-        <QueryView query={tracks} isEmpty={(d) => d.items.length === 0} empty="Spotify hasn't ranked any tracks for this window.">
+        <QueryView query={tracks} page={page} isEmpty={(d) => d.items.length === 0} empty="Spotify hasn't ranked any tracks for this window.">
           {(data) => (
             <div className="flex flex-col gap-6">
               <MusicList start={start}>
@@ -66,7 +66,7 @@ function Top() {
           )}
         </QueryView>
       ) : (
-        <QueryView query={artists} isEmpty={(d) => d.items.length === 0} empty="Spotify hasn't ranked any artists for this window.">
+        <QueryView query={artists} page={page} isEmpty={(d) => d.items.length === 0} empty="Spotify hasn't ranked any artists for this window.">
           {(data) => (
             <div className="flex flex-col gap-6">
               <MusicList start={start}>

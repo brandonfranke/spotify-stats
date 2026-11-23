@@ -3,7 +3,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { z } from "zod";
 
 import { Facts, PageHeader, QueryView, Section } from "@/components/editorial";
-import { Artwork, ArtistLinks, ArtistRow, MusicList, SpotifyLink, TrackRow } from "@/components/music";
+import { TrackArtwork, ArtistLinks, ArtistRow, MusicList, SpotifyLink, TrackRow } from "@/components/music";
 import { TimeRangeTabs } from "@/components/time-range-tabs";
 import { formatDateTime, timeRangeLabel } from "@/lib/format";
 import { orpc } from "@/utils/orpc";
@@ -31,7 +31,6 @@ function Overview() {
   const followed = useQuery(orpc.spotify.library.artists.queryOptions({ input: {} }));
 
   const leadTrack = tracks.data?.items[0];
-  const total = (value: number | undefined) => value?.toLocaleString("en-US") ?? "…";
 
   return (
     <>
@@ -55,7 +54,8 @@ function Overview() {
               <>
                 {leadTrack && (
                   <div className="rise-in flex flex-col gap-5 sm:flex-row sm:items-end">
-                    <Artwork
+                    <TrackArtwork
+                      track={leadTrack}
                       images={leadTrack.album.images}
                       alt={`Cover of ${leadTrack.album.name}`}
                       size={200}
@@ -138,10 +138,10 @@ function Overview() {
           <Section number="05" title="Your library" action={<MoreLink to="/library" />}>
             <Facts
               items={[
-                ["Saved tracks", total(savedTracks.data?.total)],
-                ["Saved albums", total(savedAlbums.data?.total)],
-                ["Playlists", total(playlists.data?.total)],
-                ["Followed artists", total(followed.data?.artists.total)],
+                ["Saved tracks", <Total key="tracks" query={savedTracks} value={savedTracks.data?.total} />],
+                ["Saved albums", <Total key="albums" query={savedAlbums} value={savedAlbums.data?.total} />],
+                ["Playlists", <Total key="playlists" query={playlists} value={playlists.data?.total} />],
+                ["Followed artists", <Total key="artists" query={followed} value={followed.data?.artists.total} />],
               ]}
             />
             <p className="text-xs text-faint-foreground">Totals as reported by Spotify.</p>
@@ -152,6 +152,18 @@ function Overview() {
       <SpotifyLink href={`https://open.spotify.com/user/${session.userId}`} label="Open your Spotify profile" className="self-start" />
     </>
   );
+}
+
+/** A Spotify-reported total, with a retry link instead of a stuck placeholder when it fails. */
+function Total({ query, value }: { query: { isError: boolean; refetch: () => unknown }; value: number | undefined }) {
+  if (query.isError) {
+    return (
+      <button type="button" className="text-destructive underline-offset-4 hover:underline" onClick={() => query.refetch()}>
+        Couldn't load · Retry
+      </button>
+    );
+  }
+  return <>{value?.toLocaleString("en-US") ?? "…"}</>;
 }
 
 function MoreLink(props: { to: "/top" | "/recent" | "/player" | "/library"; search?: Record<string, unknown> }) {

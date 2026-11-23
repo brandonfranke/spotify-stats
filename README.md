@@ -14,9 +14,18 @@ A self-hosted companion for your Spotify account: top tracks and artists, recent
 
 2. **Run the container** with your app's client ID and click **Continue with Spotify**. No client secret is needed.
 
+Copy `.env.example` to `.env` at the repository root and set `SPOTIFY_CLIENT_ID`.
+Docker Compose reads this file automatically; there is no need to set shell
+environment variables. The `.env` file is ignored by Git and excluded from the
+Docker build.
+
+```dotenv
+APP_URL=http://127.0.0.1:3000
+SPOTIFY_CLIENT_ID=your-spotify-client-id
+SOUND_LOOKUPS=true
+```
+
 ```bash
-export APP_URL=http://127.0.0.1:3000
-export SPOTIFY_CLIENT_ID=...
 docker compose up -d --build
 ```
 
@@ -24,7 +33,7 @@ Or with plain Docker:
 
 ```bash
 docker build -t spotify-stats .
-docker run -d -p 3000:3000 -e APP_URL -e SPOTIFY_CLIENT_ID spotify-stats
+docker run -d -p 3000:3000 --env-file .env spotify-stats
 ```
 
 | Variable | Purpose |
@@ -32,6 +41,7 @@ docker run -d -p 3000:3000 -e APP_URL -e SPOTIFY_CLIENT_ID spotify-stats
 | `APP_URL` | Public URL of the installation, with no trailing slash. |
 | `SPOTIFY_CLIENT_ID` | Client ID of your Spotify app. |
 | `PORT` / `HOST` | Listen address inside the container (default `0.0.0.0:3000`). |
+| `SOUND_LOOKUPS` | Optional, default `true`. Set to `false` to stop track pages from looking up tempo and key on ReccoBeats and Deezer, so the server only contacts Spotify. |
 
 For anything other than local use, put the container behind an HTTPS reverse proxy (Caddy, Traefik, nginx) and set `APP_URL` to the public `https://` URL.
 
@@ -41,16 +51,16 @@ Sign-in uses the official SDK's [PKCE flow](https://developer.spotify.com/docume
 
 - **Continue with Spotify** runs `SpotifyApi.performUserAuthorization` in the browser. On `/auth/callback` the SDK exchanges the code and posts the token to `POST /auth/token`.
 - The server checks the token with `/me` (accounts that aren't allowlisted get a clear message), then saves the token and basic profile in **one HttpOnly cookie** that lasts 30 days.
-- Each request uses `SpotifyApi.withAccessToken`, which refreshes expired tokens; the new token is saved back to the cookie. `POST /auth/logout` (same-origin only) deletes the cookie.
+- Each request uses `SpotifyApi.withAccessToken` with a token that's valid for at least another minute. The server refreshes tokens shortly before they expire, sharing one refresh between requests that arrive together, and saves the new token back to the cookie. If Spotify can't be reached to refresh, you see a retryable error instead of being signed out. `POST /auth/logout` (same-origin only) deletes the cookie.
 - The private pages are protected twice: a route guard (`routes/_app.tsx`) and an oRPC `protectedProcedure` middleware that every Spotify procedure uses.
 
 The server side lives in `apps/web/src/server/spotify-auth.ts`; the browser side in `apps/web/src/lib/login.ts`.
 
 ## What Spotify does and doesn't provide
 
-The app shows only data Spotify supplies. Some of it is limited:
+The app shows data Spotify supplies, plus per-track sound data from ReccoBeats and Deezer. Some of it is limited:
 
-- **No BPM, key, time signature, or audio features.** Spotify removed these endpoints for new apps in November 2024.
+- **Tempo, key and audio traits come from outside Spotify**, which removed these endpoints for new apps in November 2024. Track pages look them up on ReccoBeats (by Spotify ID), with Deezer's BPM (by ISRC) as a fallback. Values are estimates, some tracks have none, and time signature isn't available. Set `SOUND_LOOKUPS=false` to turn this off.
 - **Genres belong to artists**, not tracks, and are labeled that way.
 - **Top lists** cover approximate windows (about 4 weeks, 6 months, or 1 year) and are Spotify's own rankings, not play counts.
 - **Recent plays** include only the last 50 tracks.

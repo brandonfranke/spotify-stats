@@ -92,9 +92,12 @@ function Controls({ deviceId, isPlaying }: { deviceId: string; isPlaying: boolea
   const queryClient = useQueryClient();
   const control = useMutation({
     mutationFn: (action: "play" | "pause" | "next" | "previous") => client.spotify.player[action]({ deviceId }),
-    // Spotify's playback state takes a moment to reflect a command.
-    onSettled: () =>
-      setTimeout(() => queryClient.invalidateQueries({ queryKey: orpc.spotify.player.key() }), 500),
+    // Spotify's playback state takes a moment to reflect a command. Stay busy until the
+    // refreshed state arrives, so the play/pause toggle never sends a stale command.
+    onSettled: async () => {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      await queryClient.invalidateQueries({ queryKey: orpc.spotify.player.key() });
+    },
   });
   const busy = control.isPending;
   const error = control.error;

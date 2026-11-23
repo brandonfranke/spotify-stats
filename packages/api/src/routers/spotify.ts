@@ -1,7 +1,9 @@
+import { ORPCError } from "@orpc/server";
 import type { Page } from "@spotify/web-api-ts-sdk";
 import { z } from "zod";
 
 import { protectedProcedure } from "../index";
+import { getSound } from "../sound";
 import type { PlaylistItem } from "../spotify";
 
 const PAGE_SIZE = 20;
@@ -71,6 +73,16 @@ export const spotifyRouter = {
     .input(z.object({ id }))
     .handler(({ context, input }) => context.spotify.tracks.get(input.id)),
 
+  /** Tempo, key and other audio traits from ReccoBeats/Deezer (Spotify no longer offers them). */
+  sound: protectedProcedure
+    .input(z.object({ id, isrc: z.string().regex(/^[A-Z]{2}[A-Z0-9]{3}\d{7}$/i).optional() }))
+    .handler(({ input, context }) => {
+      if (!context.features.sound) {
+        throw new ORPCError("FORBIDDEN", { message: "Sound lookups are turned off on this server." });
+      }
+      return getSound(input.id, input.isrc?.toUpperCase());
+    }),
+
   artist: {
     get: protectedProcedure
       .input(z.object({ id }))
@@ -121,8 +133,15 @@ export const spotifyRouter = {
     ),
     queue: protectedProcedure.handler(({ context }) => context.spotify.player.getUsersQueue()),
     play: protectedProcedure
-      .input(z.object({ deviceId: z.string() }))
-      .handler(({ context, input }) => context.spotify.player.startResumePlayback(input.deviceId)),
+      .input(z.object({ deviceId: z.string().min(1).optional(), trackId: id.optional() }))
+      .handler(({ context, input }) =>
+        // The SDK requires a string; an empty device ID omits the parameter and targets the active device.
+        context.spotify.player.startResumePlayback(
+          input.deviceId ?? "",
+          undefined,
+          input.trackId ? [`spotify:track:${input.trackId}`] : undefined,
+        ),
+      ),
     pause: protectedProcedure
       .input(z.object({ deviceId: z.string() }))
       .handler(({ context, input }) => context.spotify.player.pausePlayback(input.deviceId)),

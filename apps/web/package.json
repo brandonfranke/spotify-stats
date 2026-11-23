@@ -3,13 +3,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc -b ../../packages/api && _VARLOCK_FILTER='!@dynamic' vite build",
+    "build": "tsc -b ../../packages/api && NODE_ENV=production _VARLOCK_FILTER='!@dynamic' vite build",
     "serve": "vite preview",
     "start": "node .output/server/index.mjs",
     "dev": "vite dev",
     "test": "vitest run",
     "test:watch": "vitest",
-    "check-types": "tsc -b ../../packages/api && _VARLOCK_FILTER='!@dynamic' vite build && tsc --noEmit",
+    "check-types": "tsc -b ../../packages/api && NODE_ENV=production _VARLOCK_FILTER='!@dynamic' vite build && tsc --noEmit",
     "env:generate": "varlock codegen"
   },
   "dependencies": {

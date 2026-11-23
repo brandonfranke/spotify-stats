@@ -1,5 +1,6 @@
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { ArrowRightIcon } from "lucide-react";
+import { useEffect } from "react";
 import { z } from "zod";
 
 import { SpotifyAttribution } from "@/components/app-shell";
@@ -37,6 +38,16 @@ function Landing() {
   const { error } = Route.useSearch();
   const config = Route.useLoaderData();
   const message = error ? (loginErrors[error] ?? "Sign-in failed. Please try again.") : null;
+
+  // Sign-in must start on APP_URL's origin: the SDK keeps its PKCE verifier in that
+  // origin's localStorage, and Spotify returns to APP_URL. Opening e.g. localhost
+  // instead of 127.0.0.1 would otherwise fail the first sign-in.
+  useEffect(() => {
+    const canonical = new URL(config.redirectUri).origin;
+    if (window.location.origin !== canonical) {
+      window.location.replace(canonical + window.location.pathname + window.location.search);
+    }
+  }, [config.redirectUri]);
 
   return (
     <div className="paper flex min-h-svh flex-col">

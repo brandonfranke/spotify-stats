@@ -68,38 +68,63 @@ describe("POST /auth/logout", () => {
 });
 
 describe("getSession", () => {
+  // Finished refreshes are shared briefly, so each test uses its own refresh token.
+  let refresh = 0;
+  function expired() {
+    const token = { ...base, refresh_token: `rt-${++refresh}`, expires: Date.now() - 1000 };
+    jar.set("spotify-stats-session", JSON.stringify({ user, token }));
+    return token.refresh_token;
+  }
+  const base = token;
+
   it("is null when signed out or the cookie is garbage", async () => {
     expect(await auth.getSession()).toBeNull();
     jar.set("spotify-stats-session", "not json");
     expect(await auth.getSession()).toBeNull();
   });
 
-  it("lets the SDK refresh an expired token and keeps the new one", async () => {
-    jar.set("spotify-stats-session", JSON.stringify({ user, token: { ...token, expires: Date.now() - 1000 } }));
+  it("uses a fresh token without contacting Spotify", async () => {
+    jar.set("spotify-stats-session", JSON.stringify({ user, token }));
+    const fetch = stubSpotify();
+    expect(await auth.getSession()).toMatchObject({ user });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("refreshes a token that is about to expire and keeps the new one", async () => {
+    jar.set("spotify-stats-session", JSON.stringify({ user, token: { ...token, refresh_token: "rt-soon", expires: Date.now() + 30_000 } }));
     const fetch = stubSpotify(Response.json({ access_token: "at2", token_type: "Bearer", expires_in: 3600, refresh_token: "rt2" }));
     expect(await auth.getSession()).toMatchObject({ user });
     expect(fetch.mock.calls[0]![0]).toBe("https://accounts.spotify.com/api/token");
     expect(stored().token).toMatchObject({ access_token: "at2", refresh_token: "rt2" });
+    expect(stored().token.expires).toBeGreaterThan(Date.now() + 3_000_000);
   });
 
   it("keeps the old refresh token when Spotify doesn't send a new one", async () => {
-    jar.set("spotify-stats-session", JSON.stringify({ user, token: { ...token, expires: Date.now() - 1000 } }));
+    const old = expired();
     stubSpotify(Response.json({ access_token: "at2", token_type: "Bearer", expires_in: 3600 }));
     await auth.getSession();
-    expect(stored().token).toMatchObject({ access_token: "at2", refresh_token: "rt" });
+    expect(stored().token).toMatchObject({ access_token: "at2", refresh_token: old });
+  });
+
+  it("shares one refresh between concurrent requests", async () => {
+    expired();
+    const fetch = stubSpotify(Response.json({ access_token: "at2", token_type: "Bearer", expires_in: 3600 }));
+    const sessions = await Promise.all([auth.getSession(), auth.getSession(), auth.getSession()]);
+    expect(sessions.every((session) => session?.user.userId === "user1")).toBe(true);
+    expect(fetch).toHaveBeenCalledTimes(1);
   });
 
   it("signs out when the refresh token is rejected", async () => {
-    jar.set("spotify-stats-session", JSON.stringify({ user, token: { ...token, expires: Date.now() - 1000 } }));
+    expired();
     stubSpotify(Response.json({ error: "invalid_grant" }, { status: 400 }));
     expect(await auth.getSession()).toBeNull();
     expect(jar.size).toBe(0);
   });
 
-  it("keeps the cookie when Spotify is temporarily unavailable", async () => {
-    jar.set("spotify-stats-session", JSON.stringify({ user, token: { ...token, expires: Date.now() - 1000 } }));
+  it("reports a retryable error, not a sign-out, when Spotify is unavailable", async () => {
+    expired();
     stubSpotify(new Response(null, { status: 503 }));
-    expect(await auth.getSession()).toBeNull();
+    await expect(auth.getSession()).rejects.toMatchObject({ code: "SERVICE_UNAVAILABLE" });
     expect(jar.size).toBe(1);
   });
 });

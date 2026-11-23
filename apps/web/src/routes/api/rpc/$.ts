@@ -7,6 +7,7 @@ import { appRouter } from "@spotify-stats/api/routers/index";
 import { createFileRoute } from "@tanstack/react-router";
 
 import { createContext } from "../../../context";
+import { isSameOrigin } from "../../../server/spotify-auth";
 
 /** Logs only the error class/code; never request data, tokens, or Spotify content. */
 function logError(error: unknown) {
@@ -29,6 +30,10 @@ const apiHandler = import.meta.env.PROD
     });
 
 async function handle({ request }: { request: Request }) {
+  // Blocks cross-origin form posts (e.g. a sibling subdomain triggering playback controls).
+  if (request.method !== "GET" && !isSameOrigin(request)) {
+    return new Response(null, { status: 403 });
+  }
   const context = await createContext({ req: request });
 
   const rpcResult = await rpcHandler.handle(request, { prefix: "/api/rpc", context });

@@ -49,7 +49,7 @@ function ArtistDetail() {
       </QueryView>
 
       <Section number="01" title="Discography">
-        <QueryView query={albums} isEmpty={(d) => d.items.length === 0} empty="Spotify didn't return any releases.">
+        <QueryView query={albums} page={page} isEmpty={(d) => d.items.length === 0} empty="Spotify didn't return any releases.">
           {(data) => (
             <div className="flex flex-col gap-6">
               <AlbumGrid>
