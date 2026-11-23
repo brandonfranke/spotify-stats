@@ -1,6 +1,6 @@
 import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { OpenAPIReferencePlugin } from "@orpc/openapi/plugins";
-import { onError } from "@orpc/server";
+import { ORPCError, onError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
 import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4";
 import { appRouter } from "@spotify-stats/api/routers/index";
@@ -8,39 +8,39 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { createContext } from "../../../context";
 
-const rpcHandler = new RPCHandler(appRouter, {
-  interceptors: [
-    onError((error) => {
-      console.error(error);
-    }),
-  ],
-});
+/** Logs only the error class/code; never request data, tokens, or Spotify content. */
+function logError(error: unknown) {
+  if (error instanceof ORPCError) {
+    if (error.status >= 500) console.error(`[rpc] ${error.code} (${error.status})`);
+    return;
+  }
+  const name = error instanceof Error ? error.name : typeof error;
+  console.error(`[rpc] unhandled ${name}`);
+}
 
-const apiHandler = new OpenAPIHandler(appRouter, {
-  plugins: [
-    new OpenAPIReferencePlugin({
-      schemaConverters: [new ZodToJsonSchemaConverter()],
-    }),
-  ],
-  interceptors: [
-    onError((error) => {
-      console.error(error);
-    }),
-  ],
-});
+const rpcHandler = new RPCHandler(appRouter, { interceptors: [onError(logError)] });
+
+// The interactive OpenAPI reference is a development convenience only.
+const apiHandler = import.meta.env.PROD
+  ? null
+  : new OpenAPIHandler(appRouter, {
+      plugins: [new OpenAPIReferencePlugin({ schemaConverters: [new ZodToJsonSchemaConverter()] })],
+      interceptors: [onError(logError)],
+    });
 
 async function handle({ request }: { request: Request }) {
-  const rpcResult = await rpcHandler.handle(request, {
-    prefix: "/api/rpc",
-    context: await createContext({ req: request }),
-  });
+  const context = await createContext({ req: request });
+
+  const rpcResult = await rpcHandler.handle(request, { prefix: "/api/rpc", context });
   if (rpcResult.response) return rpcResult.response;
 
-  const apiResult = await apiHandler.handle(request, {
-    prefix: "/api/rpc/api-reference",
-    context: await createContext({ req: request }),
-  });
-  if (apiResult.response) return apiResult.response;
+  if (apiHandler) {
+    const apiResult = await apiHandler.handle(request, {
+      prefix: "/api/rpc/api-reference",
+      context,
+    });
+    if (apiResult.response) return apiResult.response;
+  }
 
   return new Response("Not found", { status: 404 });
 }
@@ -48,12 +48,8 @@ async function handle({ request }: { request: Request }) {
 export const Route = createFileRoute("/api/rpc/$")({
   server: {
     handlers: {
-      HEAD: handle,
       GET: handle,
       POST: handle,
-      PUT: handle,
-      PATCH: handle,
-      DELETE: handle,
     },
   },
 });

@@ -1,0 +1,12 @@
+services:
+  spotify-stats:
+    build: .
+    image: spotify-stats
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      # Public URL of this installation. Register APP_URL/auth/callback as the
+      # redirect URI in your Spotify app. Must be HTTPS unless it is http://127.0.0.1.
+      APP_URL: ${APP_URL:-http://127.0.0.1:3000}
+      SPOTIFY_CLIENT_ID: ${SPOTIFY_CLIENT_ID:?set SPOTIFY_CLIENT_ID}

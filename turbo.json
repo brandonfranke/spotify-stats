@@ -5,14 +5,18 @@
     "build": {
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
-      "outputs": ["dist/**"]
+      "outputs": ["dist/**", ".output/**"]
+    },
+    "test": {
+      "dependsOn": ["^build"],
+      "outputs": []
     },
     "lint": {
       "dependsOn": ["^lint"]
     },
     "check-types": {
       "dependsOn": ["^check-types"],
-      "outputs": ["dist/**"]
+      "outputs": ["dist/**", ".output/**"]
     },
     "dev": {
       "cache": false,

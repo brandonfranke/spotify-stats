@@ -1,82 +1,83 @@
-# spotify-stats
+# Spotify Stats
 
-This project was created with [Better-T-Stack](https://github.com/AmanVarshney01/create-better-t-stack), a modern TypeScript stack that combines React, TanStack Start, Self, ORPC, and more.
+A self-hosted companion for your Spotify account: top tracks and artists, recent plays, your library, playlists, search, detail pages for every track, album, and artist, and a live Now Playing page with play/pause/skip (Spotify Premium required for controls). Spotify is the only login, and nothing is stored on the server.
 
-## Features
+## Two steps: bring your own Spotify app, then sign in
 
-- **TypeScript** - For type safety and improved developer experience
-- **TanStack Start** - SSR framework with TanStack Router
-- **TailwindCSS** - Utility-first CSS for rapid UI development
-- **Shared UI package** - shadcn/ui primitives live in `packages/ui`
-- **oRPC** - End-to-end type-safe APIs with OpenAPI integration
-- **Turborepo** - Optimized monorepo build system
+1. **Create a Spotify app** in the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard). Choose the *Web API* and add this redirect URI exactly:
 
-## Getting Started
+   ```
+   <APP_URL>/auth/callback      e.g. http://127.0.0.1:3000/auth/callback
+   ```
 
-First, install the dependencies:
+   Spotify requires HTTPS for redirect URIs, except loopback addresses such as `http://127.0.0.1`. `localhost` is not accepted. Development-mode apps are limited to a few allowlisted users, and the app owner needs Spotify Premium. To let someone else sign in, add their account under *User Management*.
+
+2. **Run the container** with your app's client ID and click **Continue with Spotify**. No client secret is needed.
+
+```bash
+export APP_URL=http://127.0.0.1:3000
+export SPOTIFY_CLIENT_ID=...
+docker compose up -d --build
+```
+
+Or with plain Docker:
+
+```bash
+docker build -t spotify-stats .
+docker run -d -p 3000:3000 -e APP_URL -e SPOTIFY_CLIENT_ID spotify-stats
+```
+
+| Variable | Purpose |
+| --- | --- |
+| `APP_URL` | Public URL of the installation, with no trailing slash. |
+| `SPOTIFY_CLIENT_ID` | Client ID of your Spotify app. |
+| `PORT` / `HOST` | Listen address inside the container (default `0.0.0.0:3000`). |
+
+For anything other than local use, put the container behind an HTTPS reverse proxy (Caddy, Traefik, nginx) and set `APP_URL` to the public `https://` URL.
+
+## How sign-in works
+
+Sign-in uses the official SDK's [PKCE flow](https://developer.spotify.com/documentation/web-api/tutorials/code-pkce-flow), so no client secret is involved:
+
+- **Continue with Spotify** runs `SpotifyApi.performUserAuthorization` in the browser. On `/auth/callback` the SDK exchanges the code and posts the token to `POST /auth/token`.
+- The server checks the token with `/me` (accounts that aren't allowlisted get a clear message), then saves the token and basic profile in **one HttpOnly cookie** that lasts 30 days.
+- Each request uses `SpotifyApi.withAccessToken`, which refreshes expired tokens; the new token is saved back to the cookie. `POST /auth/logout` (same-origin only) deletes the cookie.
+- The private pages are protected twice: a route guard (`routes/_app.tsx`) and an oRPC `protectedProcedure` middleware that every Spotify procedure uses.
+
+The server side lives in `apps/web/src/server/spotify-auth.ts`; the browser side in `apps/web/src/lib/login.ts`.
+
+## What Spotify does and doesn't provide
+
+The app shows only data Spotify supplies. Some of it is limited:
+
+- **No BPM, key, time signature, or audio features.** Spotify removed these endpoints for new apps in November 2024.
+- **Genres belong to artists**, not tracks, and are labeled that way.
+- **Top lists** cover approximate windows (about 4 weeks, 6 months, or 1 year) and are Spotify's own rankings, not play counts.
+- **Recent plays** include only the last 50 tracks.
+- **Other people's playlists** may show metadata only.
+
+## Development
 
 ```bash
 bun install
+# Create apps/web/.env with SPOTIFY_CLIENT_ID,
+# and register http://127.0.0.1:3001/auth/callback in your Spotify app.
+bun run dev                             # http://127.0.0.1:3001
 ```
 
-Then, run the development server:
+| Script | Purpose |
+| --- | --- |
+| `bun run dev` | Start the dev server |
+| `bun run build` | Production build (`apps/web/.output`) |
+| `bun run test` | Unit tests (Vitest) |
+| `bun run check-types` | TypeScript checks |
 
-```bash
-bun run dev
-```
-
-Open [http://localhost:3001](http://localhost:3001) in your browser to see the fullstack application.
-
-## UI Customization
-
-React web apps in this stack share shadcn/ui primitives through `packages/ui`.
-
-- Change design tokens and global styles in `packages/ui/src/styles/globals.css`
-- Update shared primitives in `packages/ui/src/components/*`
-- Adjust shadcn aliases or style config in `packages/ui/components.json` and `apps/web/components.json`
-
-### Add more shared components
-
-Run this from the project root to add more primitives to the shared UI package:
-
-```bash
-npx shadcn@latest add accordion dialog popover sheet table -c packages/ui
-```
-
-Import shared components like this:
-
-```tsx
-import { Button } from "@spotify-stats/ui/components/button";
-```
-
-### Add app-specific blocks
-
-If you want to add app-specific blocks instead of shared primitives, run the shadcn CLI from `apps/web`.
-
-## Environment Configuration
-
-Each app owns its environment schema in `.env.schema`. Varlock generates `src/env.ts` during installation; run `bun run env:generate` after changing a schema. Commit schemas, and keep secrets in ignored env files or your deployment platform.
-
-Import the generated `ENV` accessor in application code. Shared database and auth packages receive configuration or initialized clients from the application. See [Varlock's monorepo guide](https://varlock.dev/guides/monorepos/).
-
-Bun's automatic env loading is disabled in `bunfig.toml`; the framework integration or server bootstrap loads Varlock. Node deployments must include Varlock and its dependencies alongside the app schema.
-
-Run standalone Node/Bun tools that use Varlock from the owning app directory so they load that app's schema and env files. `env:generate` only generates TypeScript files; it does not initialize environment values in a subsequent command.
-
-## Project Structure
+Project layout:
 
 ```
-spotify-stats/
-├── apps/
-│   └── web/         # Fullstack application (React + TanStack Start)
-├── packages/
-│   ├── ui/          # Shared shadcn/ui components and styles
-│   ├── api/         # API layer / business logic
+apps/web/          TanStack Start app (routes, components, auth)
+packages/api/      oRPC routers calling the official @spotify/web-api-ts-sdk directly
+packages/ui/       shared shadcn/ui (Base UI) primitives and design tokens
 ```
 
-## Available Scripts
-
-- `bun run dev`: Start all applications in development mode
-- `bun run build`: Build all applications
-- `bun run dev:web`: Start only the web application
-- `bun run check-types`: Check TypeScript types across all apps
+Not affiliated with or endorsed by Spotify. Content and artwork are provided by Spotify.
